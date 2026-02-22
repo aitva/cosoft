@@ -15,7 +15,7 @@ type View interface {
 	Update(action Action) (View, Cmd)
 }
 
-type Cmd interface{}
+type Cmd any
 
 func RestoreView(messageType string, payload []byte) (View, error) {
 	var view View
@@ -23,10 +23,8 @@ func RestoreView(messageType string, payload []byte) (View, error) {
 	switch messageType {
 	case "login":
 		view = &LoginView{}
-		break
 	case "landing":
 		view = &LandingView{}
-		break
 	case "quick-book":
 		view = &QuickBookView{}
 	case "browse":

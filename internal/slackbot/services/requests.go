@@ -17,22 +17,18 @@ func (s *SlackService) HandleInteraction(payload string) error {
 	var result models.InteractionDiscovery
 
 	err := json.Unmarshal([]byte(payload), &result)
-
 	if err != nil {
 		return err
 	}
 
 	dbView, err := s.store.GetSlackState(result.User.ID)
-
 	if err != nil {
 		return err
 	}
 
 	var view views.View
-
 	if dbView != nil {
 		view, err = views.RestoreView(dbView.MessageType, dbView.Payload)
-
 		if err != nil {
 			return err
 		}
@@ -234,7 +230,6 @@ func (s *SlackService) HandleInteraction(payload string) error {
 	}
 
 	err = s.store.SetSlackState(result.User.ID, views.ViewType(newView), newView)
-
 	if err != nil {
 		return err
 	}

@@ -59,13 +59,10 @@ func (s *SlackService) RefreshAndGetUser(slackUserId string) (*storage.User, err
 func (s *SlackService) LogInUser(email, password, slackUserId string) error {
 	apiClient := api.NewApi()
 
-	loginPayload := api.LoginPayload{
+	response, err := apiClient.Login(&api.LoginPayload{
 		Email:    email,
 		Password: password,
-	}
-
-	response, err := apiClient.Login(&loginPayload)
-
+	})
 	if err != nil {
 		return err
 	}
