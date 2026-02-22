@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -24,7 +23,7 @@ type BrowseState struct {
 	Error      *string
 }
 
-type BrowsePayload struct {
+type browsePayload struct {
 	Time struct {
 		Time struct {
 			Type         string `json:"type"`
@@ -55,7 +54,7 @@ type BrowsePayload struct {
 	} `json:"nbPeople"`
 }
 
-type PickedRoomPayload struct {
+type pickedRoomPayload struct {
 	PickRoom struct {
 		PickRoom struct {
 			Type           string `json:"type"`
@@ -66,30 +65,38 @@ type PickedRoomPayload struct {
 	} `json:"pick-room"`
 }
 
+func (s *BrowseState) Type() string { return browseStateType }
+
 func (s *BrowseState) Update(store *storage.Store, params UpdateParams) (State, error) {
-	if params.ActionID == "cancel" {
-		return newLandingState(store, params.UserID)
-	}
-	if params.ActionID == "browse" {
-		return s.listRooms(store, params)
-	}
-	if params.ActionID == "pick-room" {
+	switch params.ActionID {
+	case "cancel":
+		return NewLandingState(store, params.UserID)
+
+	case "browse":
+		return s.browseRooms(store, params)
+
+	case "pick-room":
 		return s.pickRoom(store, params)
-	} else if params.ActionID == "book" {
+
+	case "book":
 		return s.bookRoom(store, params)
-	}
-	if params.ActionID == "back" {
+
+	case "back":
 		s.Phase = 0
 		return s, nil
-	}
-	if strings.HasPrefix(params.ActionID, "book-") {
-		// A room has been picked
-		// Return this for now.
-		return s, nil
-	}
 
-	return s, nil
+	default:
+		// TODO: remove the following code?
+		//if strings.HasPrefix(params.ActionID, "book-") {
+		//	// A room has been picked
+		//	// Return this for now.
+		//	return s, nil
+		//}
+		return s, fmt.Errorf("unexpected action ID: %v", params.ActionID)
+	}
 }
+
+func (s *BrowseState) Next() bool { return false }
 
 type browseStateQuery struct {
 	Time     time.Time
@@ -132,9 +139,9 @@ func (s *BrowseState) parseQuery() (browseStateQuery, error) {
 	}, nil
 }
 
-func (s *BrowseState) listRooms(store *storage.Store, params UpdateParams) (State, error) {
+func (s *BrowseState) browseRooms(store *storage.Store, params UpdateParams) (State, error) {
 	// Parse the payload.
-	var values BrowsePayload
+	var values browsePayload
 	err := json.Unmarshal(params.Values, &values)
 	if err != nil {
 		fmt.Println(err)
@@ -157,6 +164,7 @@ func (s *BrowseState) listRooms(store *storage.Store, params UpdateParams) (Stat
 
 	query, err := s.parseQuery()
 	if err != nil {
+		// s.Error is set by parseQuery.
 		return s, fmt.Errorf("parse query: %v", err)
 	}
 
@@ -187,7 +195,7 @@ func (s *BrowseState) listRooms(store *storage.Store, params UpdateParams) (Stat
 }
 
 func (s *BrowseState) pickRoom(store *storage.Store, params UpdateParams) (State, error) {
-	var pickedRoom PickedRoomPayload
+	var pickedRoom pickedRoomPayload
 	err := json.Unmarshal(params.Values, &pickedRoom)
 	if err != nil {
 		fmt.Println(err)

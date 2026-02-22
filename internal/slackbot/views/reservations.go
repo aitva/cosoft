@@ -1,99 +1,33 @@
 package views
 
 import (
-	"cosoft-cli/internal/api"
+	"cosoft-cli/internal/slackbot/models"
 	"cosoft-cli/internal/ui/slack"
 	"fmt"
 	"time"
-
-	"github.com/google/uuid"
 )
 
-type ReservationView struct {
-	Phase             int
-	Reservations      *[]api.Reservation
-	PickedReservation *api.Reservation
-	ReservationId     *string
-	BookingStarted    bool
-	Error             *string
-}
-
-type ReservationCmd struct {
-	Reservations  *[]api.Reservation
-	ReservationId *string
-}
-
-type CancelReservationCmd struct {
-	ReservationId *string
-}
-
-func (r *ReservationView) Update(action Action) (View, Cmd) {
-	if action.ActionID == "back" {
-		return r, &LandingCmd{}
-	}
-
-	if action.ActionID == "cancel" {
-		return r, &CancelReservationCmd{
-			ReservationId: r.ReservationId,
-		}
-	}
-
-	// Action id is the uuid of a selected booking.
-	if err := uuid.Validate(action.ActionID); err == nil {
-		r.ReservationId = &action.ActionID
-
-		// Resetting "BookingStarted" to avoid being blocked.
-		r.BookingStarted = false
-
-		for _, reservation := range *r.Reservations {
-			if reservation.OrderResourceRentId == action.ActionID {
-				r.PickedReservation = &reservation
-				break
-			}
-		}
-
-		if r.PickedReservation == nil {
-			fmt.Println("Could not find a picked reservation")
-			return r, nil
-		}
-
-		// Ensure the reservation hasn't already started
-		bookinStartsAt, err := time.ParseInLocation("2006-01-02T15:04:05", r.PickedReservation.Start, time.Local)
-
-		if err != nil {
-			fmt.Println(err)
-			return r, nil
-		}
-
-		if bookinStartsAt.Before(time.Now()) {
-			r.BookingStarted = true
-		}
-	}
-
-	return r, nil
-}
-
-func RenderReservationsView(r *ReservationView) slack.Block {
-	if r.Error != nil {
+func RenderReservationsView(s *models.ReservationState) slack.Block {
+	if s.Error != nil {
 		return slack.Block{
 			Blocks: []slack.BlockElement{
-				slack.NewContext(*r.Error),
+				slack.NewContext(*s.Error),
 			},
 		}
 	}
 
-	switch r.Phase {
+	switch s.Phase {
 	case 0:
 		blocks := slack.Block{
 			Blocks: []slack.BlockElement{
 				slack.NewHeader("Mes réservations"),
-				slack.NewMrkDwn(fmt.Sprintf("*%d* réservation(s) à venir", len(*r.Reservations))),
+				slack.NewMrkDwn(fmt.Sprintf("*%d* réservation(s) à venir", len(*s.Reservations))),
 			},
 		}
 
 		var list []slack.BlockElement
 
-		for _, r := range *r.Reservations {
+		for _, r := range *s.Reservations {
 			parsedStart, err := time.Parse("2006-01-02T15:04:05", r.Start)
 
 			if err != nil {
@@ -126,9 +60,9 @@ func RenderReservationsView(r *ReservationView) slack.Block {
 			)))
 		}
 
-		if r.PickedReservation != nil {
+		if s.PickedReservation != nil {
 
-			if r.BookingStarted {
+			if s.BookingStarted {
 				list = append(
 					list,
 					slack.BlockElement(slack.NewContext(":warning: Impossible d'annuler une réservation déjà commencée")),
@@ -140,7 +74,7 @@ func RenderReservationsView(r *ReservationView) slack.Block {
 					slack.BlockElement(slack.NewMenuItem(
 						fmt.Sprintf(
 							"Confirmer l'annulation de \"%s\" ?",
-							r.PickedReservation.ItemName,
+							s.PickedReservation.ItemName,
 						),
 						"Annuler réservation",
 						"cancel",

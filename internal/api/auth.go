@@ -84,7 +84,6 @@ func extractRefreshToken(cookies []string) string {
 }
 
 func (a *Api) GetAuth(wAuth, wAuthRefresh string) error {
-
 	req, client, err := a.prepareHeaderCookies(
 		wAuth,
 		wAuthRefresh,
@@ -92,21 +91,17 @@ func (a *Api) GetAuth(wAuth, wAuthRefresh string) error {
 		fmt.Sprintf("%s/users/auth", apiUrl),
 		nil,
 	)
-
 	if err != nil {
 		return err
 	}
 
 	resp, err := client.Do(req)
-
 	if err != nil {
 		return err
 	}
-
 	defer resp.Body.Close()
 
 	response := AuthPayload{}
-
 	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return err
 	}

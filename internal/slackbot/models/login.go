@@ -28,6 +28,8 @@ type loginValues struct {
 	} `json:"password"`
 }
 
+func (s *LoginState) Type() string { return loginStateType }
+
 func (s *LoginState) Update(store *storage.Store, params UpdateParams) (State, error) {
 	var values loginValues
 
@@ -60,6 +62,8 @@ func (s *LoginState) Update(store *storage.Store, params UpdateParams) (State, e
 
 	return s, nil
 }
+
+func (s *LoginState) Next() bool { return false }
 
 type loginParams struct {
 	Email    string

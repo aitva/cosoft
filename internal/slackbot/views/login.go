@@ -1,65 +1,12 @@
 package views
 
 import (
+	"cosoft-cli/internal/slackbot/models"
 	"cosoft-cli/internal/ui/slack"
-	"encoding/json"
-	"fmt"
 	"slices"
 )
 
-type LoginView struct {
-	Email    string
-	Password string
-	Error    *string
-}
-
-type LoginCmd struct {
-	Email    string
-	Password string
-}
-
-type LoginValues struct {
-	Email struct {
-		Email struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"email"`
-	} `json:"email"`
-	Password struct {
-		Password struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"password"`
-	} `json:"password"`
-}
-
-func (l *LoginView) Update(action Action) (View, Cmd) {
-	var values LoginValues
-
-	err := json.Unmarshal(action.Values, &values)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	l.Email = values.Email.Email.Value
-	l.Password = values.Password.Password.Value
-	l.Error = nil
-
-	if l.Email == "" || l.Password == "" {
-		s := ":warning: Tous les champs sont requis"
-		l.Error = &s
-
-		return l, nil
-	}
-
-	return l, &LoginCmd{
-		Email:    l.Email,
-		Password: l.Password,
-	}
-}
-
-func RenderLoginView(l *LoginView) slack.Block {
+func RenderLoginView(s *models.LoginState) slack.Block {
 	loginBlocks := []slack.BlockElement{
 		slack.NewMrkDwn(":information_source:  Pour réserver une salle, il faut d'abord vous identifier."),
 		slack.NewInput("Email", "email"),
@@ -68,11 +15,11 @@ func RenderLoginView(l *LoginView) slack.Block {
 		slack.NewButtons([]slack.ChoicePayload{{"Connexion", "login"}}),
 	}
 
-	if l.Error != nil {
+	if s.Error != nil {
 		loginBlocks = slices.Insert(
 			loginBlocks,
 			3,
-			slack.BlockElement(slack.NewContext(*l.Error)),
+			slack.BlockElement(slack.NewContext(*s.Error)),
 		)
 	}
 

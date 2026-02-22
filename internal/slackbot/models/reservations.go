@@ -39,9 +39,11 @@ func newReservationState(store *storage.Store, userID string) (State, error) {
 	}, nil
 }
 
+func (s *ReservationState) Type() string { return reservationStateType }
+
 func (s *ReservationState) Update(store *storage.Store, params UpdateParams) (State, error) {
 	if params.ActionID == "back" {
-		return newLandingState(store, params.UserID)
+		return NewLandingState(store, params.UserID)
 	}
 
 	if params.ActionID == "cancel" {
@@ -86,6 +88,8 @@ func (s *ReservationState) Update(store *storage.Store, params UpdateParams) (St
 	return s, nil
 }
 
+func (s *ReservationState) Next() bool { return false }
+
 type cancelReservationParams struct {
 	UserID        string
 	ReservationID string
@@ -96,6 +100,7 @@ func (s *ReservationState) cancel(store *storage.Store, params cancelReservation
 
 	user, err := store.GetUserData(&params.UserID)
 	if err != nil {
+		// TODO: redirect the user to the login page and display an error?
 		s.Error = &errCannotCancel
 		return s, fmt.Errorf("get user data: %v", err)
 	}

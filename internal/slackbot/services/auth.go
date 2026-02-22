@@ -2,75 +2,44 @@ package services
 
 import (
 	"cosoft-cli/internal/api"
-	"cosoft-cli/internal/slackbot/views"
-	"cosoft-cli/internal/storage"
-	"cosoft-cli/shared/models"
+	"cosoft-cli/internal/slackbot/models"
+	"fmt"
 )
 
-func (s *SlackService) AuthGuard(request models.Request) (*views.LoginView, error) {
+type Request struct {
+	UserId      string
+	Command     string
+	Text        string
+	ResponseUrl string
+	TriggerId   string
+}
+
+func (s *SlackService) AuthGuard(request *Request) (models.State, error) {
 	cookies, err := s.store.HasActiveToken(&request.UserId)
-
-	if err != nil || cookies == nil {
-
-		loginView := &views.LoginView{
-			Email:    "",
-			Password: "",
-		}
-
-		err := s.store.SetSlackState(request.UserId, "login", loginView)
-
-		if err != nil {
-			return nil, err
-		}
-
-		return loginView, nil
+	if err != nil {
+		return &models.LoginState{}, fmt.Errorf("has active token: %v", err)
 	}
 
+	// Fast path if there are no cookies.
+	if cookies == nil {
+		return &models.LoginState{}, nil
+	}
+
+	// TODO: why are we doing this?
 	apiClient := api.NewApi()
 	err = apiClient.GetAuth(cookies.WAuth, cookies.WAuthRefresh)
+	if err != nil {
+		return &models.LoginState{}, fmt.Errorf("get auth: %v", err)
+	}
 
-	return nil, nil
+	state, err := models.NewLandingState(s.store, request.UserId)
+	if err != nil {
+		return state, fmt.Errorf("new landing state: %v", err)
+	}
+
+	return state, nil
 }
 
-func (s *SlackService) ClearUserStates(request models.Request) error {
+func (s *SlackService) ClearUserStates(request *Request) error {
 	return s.store.ResetUserSlackState(request.UserId)
-}
-
-func (s *SlackService) GetUserData(userId string) (*storage.User, error) {
-	return s.store.GetUserData(&userId)
-}
-
-func (s *SlackService) RefreshAndGetUser(slackUserId string) (*storage.User, error) {
-	_, err := s.store.UpdateCredits(&slackUserId)
-
-	if err != nil {
-		return nil, err
-	}
-
-	user, err := s.GetUserData(slackUserId)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
-}
-
-func (s *SlackService) LogInUser(email, password, slackUserId string) error {
-	apiClient := api.NewApi()
-
-	response, err := apiClient.Login(&api.LoginPayload{
-		Email:    email,
-		Password: password,
-	})
-	if err != nil {
-		return err
-	}
-
-	return s.store.SetUser(
-		response,
-		response.JwtToken,
-		response.RefreshToken,
-		&slackUserId,
-	)
 }
